@@ -31,6 +31,10 @@ Vision::Vision(const std::string &node_name)
     blue_sign_detected_pub_ = this->create_publisher<std_msgs::msg::Bool>("/vision/blue_sign_detected", 10);
 
     white_line_points_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/vision/white_line_points", 10);
+    yellow_line_points_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("/vision/yellow_line_points", 10);
+
+    yellow_angle_pub_ = this->create_publisher<std_msgs::msg::Float32>("/vision/yellow_line_angle", 10);
+    white_angle_pub_ = this->create_publisher<std_msgs::msg::Float32>("/vision/white_line_angle", 10);
 
     yellow_detection_array.fill(false);
     white_detection_array.fill(false);
@@ -190,7 +194,6 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
                 if (moments.m00 != 0)
                 {
                     yellow_line_x = moments.m10 / moments.m00;
-
                     yellow_line_x = (yellow_line_x / width) * 2 - 1;
 
                     auto yellow_pos_msg = std_msgs::msg::Float32();
@@ -201,9 +204,38 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
                 std::vector<cv::Point> approx;
                 cv::approxPolyDP(contour, approx, 10, true);
 
+                // 긴 축을 찾기 위한 최소 영역 사각형
                 cv::RotatedRect rot_rect = cv::minAreaRect(contour);
                 cv::Point2f vertices[4];
                 rot_rect.points(vertices);
+
+                auto line_points_msg = std_msgs::msg::Float32MultiArray();
+                line_points_msg.data.resize(8);
+                for (int i = 0; i < 4; i++)
+                {
+                    float x = vertices[i].x;
+                    float y = vertices[i].y;
+
+                    x = (x < 0.0f) ? 0.0f : x;
+                    y = (y < 0.0f) ? 0.0f : y;
+
+                    line_points_msg.data[i * 2] = x;
+                    line_points_msg.data[i * 2 + 1] = y;
+                }
+
+                float angle = 0.0f;
+                float dx = vertices[2].x - vertices[1].x;
+                float dy = vertices[2].y - vertices[1].y;
+
+                angle = std::atan2(dy, dx);
+
+                angle = angle * 180.0f / M_PI;
+
+                auto angle_msg = std_msgs::msg::Float32();
+                angle_msg.data = angle;
+                yellow_angle_pub_->publish(angle_msg);
+
+                yellow_line_points_pub_->publish(line_points_msg);
 
                 float max_length = 0;
                 int max_idx = 0;
@@ -235,7 +267,6 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
                 {
                     white_line_x = moments.m10 / moments.m00;
 
-                    // Normalize to -1 to 1 range where 0 is center
                     white_line_x = (white_line_x / width) * 2 - 1;
 
                     auto white_pos_msg = std_msgs::msg::Float32();
@@ -252,12 +283,31 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
                 rot_rect.points(vertices);
 
                 auto line_points_msg = std_msgs::msg::Float32MultiArray();
-                line_points_msg.data.resize(8); // x1,y1,x2,y2,x3,y3,x4,y4 총 8개의 값
+                line_points_msg.data.resize(8);
                 for (int i = 0; i < 4; i++)
                 {
-                    line_points_msg.data[i * 2] = vertices[i].x;     // x 좌표
-                    line_points_msg.data[i * 2 + 1] = vertices[i].y; // y 좌표
+                    float x = vertices[i].x;
+                    float y = vertices[i].y;
+
+                    x = (x < 0.0f) ? 0.0f : x;
+                    y = (y < 0.0f) ? 0.0f : y;
+
+                    line_points_msg.data[i * 2] = x;
+                    line_points_msg.data[i * 2 + 1] = y;
                 }
+
+                float angle = 0.0f;
+                float dx = vertices[2].x - vertices[1].x;
+                float dy = vertices[2].y - vertices[1].y;
+
+                angle = std::atan2(dy, dx);
+
+                angle = angle * 180.0f / M_PI;
+
+                auto angle_msg = std_msgs::msg::Float32();
+                angle_msg.data = angle;
+                white_angle_pub_->publish(angle_msg);
+
                 white_line_points_pub_->publish(line_points_msg);
 
                 float max_length = 0;

@@ -31,7 +31,10 @@ private:
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr white_detected_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr blue_sign_detected_pub_;
     rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr white_line_points_pub_;
-    
+    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr yellow_line_points_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr yellow_angle_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr white_angle_pub_;
+
     bool blue_sign_detected;
     bool yellow_line_detected;
     bool white_line_detected;
