@@ -297,8 +297,8 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
                 }
 
                 float angle = 0.0f;
-                float dx = vertices[2].x - vertices[1].x;
-                float dy = vertices[2].y - vertices[1].y;
+                float dx = vertices[3].x - vertices[0].x;
+                float dy = vertices[3].y - vertices[0].y;
 
                 angle = std::atan2(dy, dx);
 
