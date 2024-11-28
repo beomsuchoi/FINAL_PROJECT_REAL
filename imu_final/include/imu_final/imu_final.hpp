@@ -8,16 +8,6 @@
 #include <vector>
 #include <sstream>
 
-class LowPassFilter {
-private:
-    float alpha;
-    float filtered_value;
-    bool first_run;
-public:
-    LowPassFilter(float a = 0.1) : alpha(a), first_run(true) {}
-    float update(float input);
-};
-
 class KalmanFilter {
 private:
     float Q, R, P, X, K;
@@ -39,6 +29,7 @@ private:
                           const double q2, const double q3,
                           double& roll, double& pitch, double& yaw);
     void processImuData(const std::vector<double>& data);
+    void normalizeAngle(double &angle);
 
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr imu_sub_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr roll_pub_;
@@ -47,10 +38,6 @@ private:
     
     // yaw 오프셋 변수 추가
     double yaw_offset = 0.0;
-    
-    LowPassFilter roll_lpf;
-    LowPassFilter pitch_lpf;
-    LowPassFilter yaw_lpf;
     
     KalmanFilter roll_kf;
     KalmanFilter pitch_kf;
