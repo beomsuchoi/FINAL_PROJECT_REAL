@@ -73,12 +73,21 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
         cv::Point2f src_vertices[4];
         cv::Point2f dst_vertices[4];
         cv::Point2f signs_vertices[4];
+        cv::Point2f bar_vertices[4];
+        
+        //차단바
+        bar_vertices[0] = cv::Point2f(width * 0.35f, height * 0.55f);
+        bar_vertices[1] = cv::Point2f(width * 0.65f, height * 0.55f);
+        bar_vertices[2] = cv::Point2f(width * 0.65f, height * 0.7f);
+        bar_vertices[3] = cv::Point2f(width * 0.35f, height * 0.7f);
 
+        //표지판
         signs_vertices[0] = cv::Point2f(width * 0.95f, height * 0.3f);
         signs_vertices[1] = cv::Point2f(width * 1.0f, height * 0.3f);
         signs_vertices[2] = cv::Point2f(width * 1.0f, height * 0.55f);
         signs_vertices[3] = cv::Point2f(width * 0.95f, height * 0.55f);
 
+        //라인트레이싱
         src_vertices[0] = cv::Point2f(width * 0.15f, height * 0.9f);
         src_vertices[1] = cv::Point2f(width * 0.85f, height * 0.9f);
         src_vertices[2] = cv::Point2f(width * 0.9f, height * 1.0f);
@@ -97,7 +106,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
         // 전처리 과정
         cv::Mat preprocessed;
         cv::GaussianBlur(birds_eye_view, preprocessed, cv::Size(5, 5), 0);
-        cv::GaussianBlur(birds_eye_view, preprocessed, cv::Size(5, 5), 0);
+        cv::GaussianBlur(birds_eye_view, preprocessed, cv::Size(5, 5), 0);//기홍X
 
         // CLAHE 적용 (L*a*b* 색공간)
         cv::Mat lab;
@@ -117,12 +126,12 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
         cv::Mat yellow_mask_combined;
 
         cv::Mat yellow_mask_hsv;
-        cv::Scalar lower_yellow_hsv(15, 130, 130);
+        cv::Scalar lower_yellow_hsv(20, 150, 150);//기홍 15,130, 130
         cv::Scalar upper_yellow_hsv(30, 255, 255);
         cv::inRange(hsv, lower_yellow_hsv, upper_yellow_hsv, yellow_mask_hsv);
 
         cv::Mat yellow_mask_lab;
-        cv::inRange(lab, cv::Scalar(150, 120, 130), cv::Scalar(250, 140, 200), yellow_mask_lab);
+        cv::inRange(lab, cv::Scalar(150, 130, 140), cv::Scalar(250, 140, 200), yellow_mask_lab);
 
         cv::Mat yellow_mask_rgb;
         cv::inRange(preprocessed, cv::Scalar(180, 180, 0), cv::Scalar(255, 255, 150), yellow_mask_rgb);
@@ -185,7 +194,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
         for (const auto &contour : yellow_contours)
         {
             double area = cv::contourArea(contour);
-            if (area > 150.0)
+            if (area > 200.0)
             {
                 yellow_line_detected = true;
                 yellow_line_count++;
@@ -215,9 +224,6 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
                 {
                     float x = vertices[i].x;
                     float y = vertices[i].y;
-
-                    x = (x < 0.0f) ? 0.0f : x;
-                    y = (y < 0.0f) ? 0.0f : y;
 
                     line_points_msg.data[i * 2] = x;
                     line_points_msg.data[i * 2 + 1] = y;
@@ -277,7 +283,6 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
                 std::vector<cv::Point> approx;
                 cv::approxPolyDP(contour, approx, 10, true);
 
-                // 긴 축을 찾기 위한 최소 영역 사각형
                 cv::RotatedRect rot_rect = cv::minAreaRect(contour);
                 cv::Point2f vertices[4];
                 rot_rect.points(vertices);
@@ -288,9 +293,6 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
                 {
                     float x = vertices[i].x;
                     float y = vertices[i].y;
-
-                    x = (x < 0.0f) ? 0.0f : x;
-                    y = (y < 0.0f) ? 0.0f : y;
 
                     line_points_msg.data[i * 2] = x;
                     line_points_msg.data[i * 2 + 1] = y;
@@ -384,7 +386,12 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
         blue_sign_msg.data = blue_sign_detected;
         blue_sign_detected_pub_->publish(blue_sign_msg);
 
-        // ROI 영역 표시 (빨간색)
+        // ROI 영역 표시
+        for(int i = 0; i < 4; i++)
+        {
+            cv::line(resized_frame, bar_vertices[i], bar_vertices[(i+1) % 4],
+                     cv::Scalar(255, 0, 0), 2);
+        }
         for (int i = 0; i < 4; i++)
         {
             cv::line(resized_frame, signs_vertices[i], signs_vertices[(i + 1) % 4],
