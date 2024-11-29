@@ -368,7 +368,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::Scalar barrier_lower_yellow(15, 100, 100);
         cv::Scalar barrier_upper_yellow(35, 255, 255);
         cv::inRange(bar_hsv, barrier_lower_yellow, barrier_upper_yellow, bar_yellow_roi);
-        
+
         // 차단바 영역에서 라인 검출 추가
         cv::Mat bar_yellow_line_mask, bar_white_line_mask;
         cv::inRange(bar_hsv, barrier_lower_yellow, barrier_upper_yellow, bar_yellow_line_mask);
@@ -383,7 +383,6 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::morphologyEx(bar_yellow_line_mask, bar_yellow_line_mask, cv::MORPH_CLOSE, kernel_large);
         cv::morphologyEx(bar_white_line_mask, bar_white_line_mask, cv::MORPH_OPEN, kernel);
         cv::morphologyEx(bar_white_line_mask, bar_white_line_mask, cv::MORPH_CLOSE, kernel_large);
-
 
         // ROI 적용
         cv::bitwise_and(bar_yellow_roi, bar_roi_mask, bar_yellow_roi);
@@ -423,16 +422,31 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
 
                 // 각도 계산을 위한 최소 영역 사각형
                 cv::RotatedRect rot_rect = cv::minAreaRect(contour);
-                cv::Point2f vertices[4];
-                rot_rect.points(vertices);
 
                 // 각도 계산
-                float dx = vertices[2].x - vertices[1].x;
-                float dy = vertices[2].y - vertices[1].y;
+                float width = rot_rect.size.width;
+                float height = rot_rect.size.height;
+                barrier_yellow_angle = rot_rect.angle;
 
-                barrier_yellow_angle = std::atan2(dy, dx) * 180.0f / M_PI;
+                // width가 height보다 작을 때 90도 보정
+                if (width < height)
+                {
+                    barrier_yellow_angle += 90.0f;
+                }
+
+                // 각도 범위를 -90 ~ 90으로 조정
+                if (barrier_yellow_angle > 90.0f)
+                {
+                    barrier_yellow_angle -= 180.0f;
+                }
+                else if (barrier_yellow_angle < -90.0f)
+                {
+                    barrier_yellow_angle += 180.0f;
+                }
 
                 // 라인 그리기
+                cv::Point2f vertices[4];
+                rot_rect.points(vertices);
                 float max_length = 0;
                 int max_idx = 0;
                 for (int i = 0; i < 4; i++)
@@ -466,15 +480,31 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
 
                 // 각도 계산을 위한 최소 영역 사각형
                 cv::RotatedRect rot_rect = cv::minAreaRect(contour);
-                cv::Point2f vertices[4];
-                rot_rect.points(vertices);
 
                 // 각도 계산
-                float dx = vertices[3].x - vertices[0].x;
-                float dy = vertices[3].y - vertices[0].y;
-                barrier_white_angle = std::atan2(dy, dx) * 180.0f / M_PI;
+                float width = rot_rect.size.width;
+                float height = rot_rect.size.height;
+                barrier_white_angle = rot_rect.angle;
+
+                // width가 height보다 작을 때 90도 보정
+                if (width < height)
+                {
+                    barrier_white_angle += 90.0f;
+                }
+
+                // 각도 범위를 -90 ~ 90으로 조정
+                if (barrier_white_angle > 90.0f)
+                {
+                    barrier_white_angle -= 180.0f;
+                }
+                else if (barrier_white_angle < -90.0f)
+                {
+                    barrier_white_angle += 180.0f;
+                }
 
                 // 라인 그리기
+                cv::Point2f vertices[4];
+                rot_rect.points(vertices);
                 float max_length = 0;
                 int max_idx = 0;
                 for (int i = 0; i < 4; i++)
