@@ -35,6 +35,11 @@ private:
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr yellow_angle_pub_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr white_angle_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr barrier_detected_pub_;
+
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr barrier_yellow_line_detected_pub_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr barrier_white_line_detected_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr barrier_yellow_line_angle_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr barrier_white_line_angle_pub_;
     
     bool barrier_detected;
     bool blue_sign_detected;
