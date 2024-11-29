@@ -363,9 +363,15 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::Mat bar_hsv;
         cv::cvtColor(resized_frame, bar_hsv, cv::COLOR_BGR2HSV);
 
+        // 차단바 검출을 위한 노란색 마스크
+        cv::Mat bar_yellow_roi;
+        cv::Scalar barrier_lower_yellow(15, 100, 100);
+        cv::Scalar barrier_upper_yellow(35, 255, 255);
+        cv::inRange(bar_hsv, barrier_lower_yellow, barrier_upper_yellow, bar_yellow_roi);
+        
         // 차단바 영역에서 라인 검출 추가
         cv::Mat bar_yellow_line_mask, bar_white_line_mask;
-        cv::inRange(bar_hsv, lower_yellow_hsv, upper_yellow_hsv, bar_yellow_line_mask);
+        cv::inRange(bar_hsv, barrier_lower_yellow, barrier_upper_yellow, bar_yellow_line_mask);
         cv::inRange(bar_hsv, lower_white_hsv, upper_white_hsv, bar_white_line_mask);
 
         // ROI 적용
@@ -378,11 +384,6 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::morphologyEx(bar_white_line_mask, bar_white_line_mask, cv::MORPH_OPEN, kernel);
         cv::morphologyEx(bar_white_line_mask, bar_white_line_mask, cv::MORPH_CLOSE, kernel_large);
 
-        // 차단바 검출을 위한 노란색 마스크
-        cv::Mat bar_yellow_roi;
-        cv::Scalar barrier_lower_yellow(15, 100, 100);
-        cv::Scalar barrier_upper_yellow(35, 255, 255);
-        cv::inRange(bar_hsv, barrier_lower_yellow, barrier_upper_yellow, bar_yellow_roi);
 
         // ROI 적용
         cv::bitwise_and(bar_yellow_roi, bar_roi_mask, bar_yellow_roi);
