@@ -1,10 +1,10 @@
-// imu_final.hpp
 #ifndef IMU_FINAL_HPP
 #define IMU_FINAL_HPP
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/float32.hpp"
+#include "std_srvs/srv/trigger.hpp"
 #include <vector>
 #include <sstream>
 
@@ -30,13 +30,19 @@ private:
                           double& roll, double& pitch, double& yaw);
     void processImuData(const std::vector<double>& data);
     void normalizeAngle(double &angle);
+    
+    // 서비스 콜백 함수 추가
+    void handleResetSignal(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+                          std::shared_ptr<std_srvs::srv::Trigger::Response> response);
 
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr imu_sub_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr roll_pub_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pitch_pub_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr yaw_pub_;
     
-    // yaw 오프셋 변수 추가
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reset_service_;
+    
+    // yaw 오프셋 변수
     double yaw_offset = 0.0;
     
     KalmanFilter roll_kf;
