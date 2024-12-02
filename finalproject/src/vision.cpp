@@ -96,10 +96,10 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         signs_vertices[3] = cv::Point2f(width * 0.95f, height * 0.55f);
 
         // 라인트레이싱
-        src_vertices[0] = cv::Point2f(width * 0.15f, height * 0.9f);
-        src_vertices[1] = cv::Point2f(width * 0.85f, height * 0.9f);
-        src_vertices[2] = cv::Point2f(width * 0.9f, height * 1.0f);
-        src_vertices[3] = cv::Point2f(width * 0.1f, height * 1.0f);
+        src_vertices[0] = cv::Point2f(width * 0.1f, height * 0.9f);
+        src_vertices[1] = cv::Point2f(width * 0.9f, height * 0.9f);
+        src_vertices[2] = cv::Point2f(width * 0.95f, height * 1.0f);
+        src_vertices[3] = cv::Point2f(width * 0.05f, height * 1.0f);
         // 이미지 자체의 크기
         dst_vertices[0] = cv::Point2f(0, 0);
         dst_vertices[1] = cv::Point2f(width, 0);
@@ -129,6 +129,8 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         // 통합
         cv::merge(lab_channels, lab);
         cv::cvtColor(lab, preprocessed, cv::COLOR_Lab2BGR);
+
+        // ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
 
         cv::Mat hsv;
         cv::cvtColor(preprocessed, hsv, cv::COLOR_BGR2HSV);
@@ -188,7 +190,9 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::morphologyEx(white_mask_combined, white_mask_combined, cv::MORPH_CLOSE, kernel_large);
         cv::dilate(white_mask_combined, white_mask_combined, kernel, cv::Point(-1, -1), 2);
 
-        // 선 검출 (컨투어 기반)
+        // ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+
+        //  선 검출 (컨투어 기반)
         std::vector<std::vector<cv::Point>> yellow_contours, white_contours;
         cv::findContours(yellow_mask_combined, yellow_contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
         cv::findContours(white_mask_combined, white_contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
@@ -350,6 +354,8 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
                         white_line_detected, white_line_count);
         }
 
+        // ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+
         // 차단바 검출
         cv::Mat bar_roi_mask = cv::Mat::zeros(resized_frame.size(), CV_8UC1);
         std::vector<cv::Point> bar_roi_points;
@@ -390,10 +396,6 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         // 노이즈 제거
         cv::morphologyEx(bar_yellow_roi, bar_yellow_roi, cv::MORPH_OPEN, kernel);
         cv::morphologyEx(bar_yellow_roi, bar_yellow_roi, cv::MORPH_CLOSE, kernel_large);
-
-        cv::imshow("Barrier Yellow", bar_yellow_roi);
-        cv::imshow("Barrier Line Yellow", bar_yellow_line_mask);
-        cv::imshow("Barrier Line White", bar_white_line_mask);
 
         // 라인 컨투어 검출
         std::vector<std::vector<cv::Point>> bar_yellow_line_contours, bar_white_line_contours;
@@ -463,6 +465,8 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
             }
         }
 
+        // ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+
         // 흰색 라인 처리
         for (const auto &contour : bar_white_line_contours)
         {
@@ -492,7 +496,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
                     barrier_white_angle += 90.0f;
                 }
 
-                // 각도 범위를 -90 ~ 90으로 조정
+                // 각도 범위를 -90 ~ 90으로 조정, 왼쪽이 - 오른쪽이 +
                 if (barrier_white_angle > 90.0f)
                 {
                     barrier_white_angle -= 180.0f;
@@ -528,7 +532,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         std::vector<cv::RotatedRect> candidate_rects;
         barrier_detected = false;
 
-        // 먼저 적절한 크기의 모든 사각형을 수집 (50에서 1000 사이 작은 사각형)
+        // 먼저 적절한 크기의 모든 사각형을 수집
         for (const auto &yellow_contour : bar_yellow_contours)
         {
             double area = cv::contourArea(yellow_contour);
@@ -619,7 +623,9 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         barrier_msg.data = barrier_detected;
         barrier_detected_pub_->publish(barrier_msg);
 
-        // 표지판 검출 부분 (파란색 색상)
+        // ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+
+        // 표지판 ROI 마스크 생성
         cv::Mat sign_roi_mask = cv::Mat::zeros(resized_frame.size(), CV_8UC1);
         std::vector<cv::Point> roi_points;
         for (int i = 0; i < 4; i++)
@@ -628,36 +634,33 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         }
         cv::fillConvexPoly(sign_roi_mask, roi_points, cv::Scalar(255));
 
-        // HSV 공간에서 파란색 검출
+        // 먼저 ROI 영역만 추출
+        cv::Mat roi_image;
+        resized_frame.copyTo(roi_image, sign_roi_mask);
+
+        // ROI 영역에 대해서만 HSV 변환 수행
         cv::Mat sign_hsv;
-        cv::cvtColor(resized_frame, sign_hsv, cv::COLOR_BGR2HSV);
+        cv::cvtColor(roi_image, sign_hsv, cv::COLOR_BGR2HSV);
 
         // 파란색 마스크 생성 - HSV 값 조정
         cv::Mat blue_mask;
-        cv::Scalar lower_blue_hsv(100, 50, 50);
+        cv::Scalar lower_blue_hsv(100, 70, 50);
         cv::Scalar upper_blue_hsv(130, 255, 255);
         cv::inRange(sign_hsv, lower_blue_hsv, upper_blue_hsv, blue_mask);
 
-        // ROI 영역 내의 파란색만 검출
-        cv::Mat blue_roi;
-        cv::bitwise_and(blue_mask, sign_roi_mask, blue_roi);
-
         // 노이즈 제거
-        cv::morphologyEx(blue_roi, blue_roi, cv::MORPH_OPEN, kernel);
-        cv::morphologyEx(blue_roi, blue_roi, cv::MORPH_CLOSE, kernel_large);
+        cv::morphologyEx(blue_mask, blue_mask, cv::MORPH_OPEN, kernel);
+        cv::morphologyEx(blue_mask, blue_mask, cv::MORPH_CLOSE, kernel_large);
 
         // 파란색 영역 검출
         std::vector<std::vector<cv::Point>> blue_contours;
-        cv::findContours(blue_roi, blue_contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+        cv::findContours(blue_mask, blue_contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-        // 파란색 표지판 검출 여부
         bool blue_sign_detected = false;
-
-        // 일정 크기 이상의 파란색 영역이 있는지 확인
         for (const auto &contour : blue_contours)
         {
             double area = cv::contourArea(contour);
-            if (area > 50.0)
+            if (area > 100.0)
             {
                 blue_sign_detected = true;
                 break;
@@ -727,6 +730,10 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::imshow("Yellow Mask", yellow_mask_combined);
         cv::imshow("White Mask", white_mask_combined);
         cv::imshow("Detected Lines", line_display);
+        cv::imshow("Barrier Yellow", bar_yellow_roi);
+        cv::imshow("Barrier Line Yellow", bar_yellow_line_mask);
+        cv::imshow("Barrier Line White", bar_white_line_mask);
+        cv::imshow("BLUe", blue_mask);
         cv::waitKey(1);
     }
     catch (const cv_bridge::Exception &e)
