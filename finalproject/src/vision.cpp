@@ -730,9 +730,9 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // ë³¸ê
         cv::imshow("Yellow Mask", yellow_mask_combined);
         cv::imshow("White Mask", white_mask_combined);
         cv::imshow("Detected Lines", line_display);
-        cv::imshow("Barrier Yellow", bar_yellow_roi);
-        cv::imshow("Barrier Line Yellow", bar_yellow_line_mask);
-        cv::imshow("Barrier Line White", bar_white_line_mask);
+        //cv::imshow("Barrier Yellow", bar_yellow_roi);
+        //cv::imshow("Barrier Line Yellow", bar_yellow_line_mask);
+        //cv::imshow("Barrier Line White", bar_white_line_mask);
         cv::imshow("BLUe", blue_mask);
         cv::waitKey(1);
     }
