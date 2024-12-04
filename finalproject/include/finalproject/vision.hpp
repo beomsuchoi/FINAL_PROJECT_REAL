@@ -12,12 +12,27 @@
 #include <vector>
 #include <array> // std::array를 위해 추가
 
+struct RANSACLine
+{
+    cv::Point2f start;
+    cv::Point2f end;
+    float angle;
+    float center_x;
+    float center_y;
+    int num_inliers;
+    bool valid;
+};
+
 class Vision : public rclcpp::Node
 {
 public:
     explicit Vision(const std::string &node_name);
 
 private:
+    RANSACLine detectLineRANSAC(const std::vector<cv::Point> &points,
+                                int iterations = 100,
+                                double threshold = 2.0);
+
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg);
     bool isLineValid(std::array<bool, 10> &detection_array, bool current_detection);
 
@@ -40,7 +55,7 @@ private:
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr barrier_white_line_detected_pub_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr barrier_yellow_line_angle_pub_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr barrier_white_line_angle_pub_;
-    
+
     bool barrier_detected;
     bool blue_sign_detected;
     bool yellow_line_detected;

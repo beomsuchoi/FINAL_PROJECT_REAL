@@ -115,7 +115,6 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         // 전처리 과정 (블러 2번)
         cv::Mat preprocessed;
         cv::GaussianBlur(birds_eye_view, preprocessed, cv::Size(5, 5), 0);
-        cv::GaussianBlur(birds_eye_view, preprocessed, cv::Size(5, 5), 0);
 
         // CLAHE 적용 (L*a*b* 색공간) //노이즈 제거 but 색조 대비는 별로 없어서 큰 영향 X
         cv::Mat lab;
@@ -139,7 +138,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::Mat yellow_mask_combined;
 
         cv::Mat yellow_mask_hsv;
-        cv::Scalar lower_yellow_hsv(20, 150, 150);
+        cv::Scalar lower_yellow_hsv(20, 120, 120);
         cv::Scalar upper_yellow_hsv(30, 255, 255);
         cv::inRange(hsv, lower_yellow_hsv, upper_yellow_hsv, yellow_mask_hsv);
 
@@ -164,7 +163,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
 
         // 1. HSV 기반 흰색 검출
         cv::Mat white_mask_hsv;
-        cv::Scalar lower_white_hsv(0, 0, 200);
+        cv::Scalar lower_white_hsv(0, 0, 210);
         cv::Scalar upper_white_hsv(180, 30, 255);
         cv::inRange(hsv, lower_white_hsv, upper_white_hsv, white_mask_hsv);
 
@@ -201,150 +200,116 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::Mat line_display = preprocessed.clone();
 
         // 기본 설정
-        yellow_line_detected = false;
-        white_line_detected = false;
-        yellow_line_count = 0;
-        white_line_count = 0;
+yellow_line_detected = false;
+white_line_detected = false;
+yellow_line_count = 0;
+white_line_count = 0;
 
-        // 노란색 선 그리기
-        for (const auto &contour : yellow_contours)
-        {
-            double area = cv::contourArea(contour);
-            if (area > 200.0) // 작은 노이즈 제거
-            {
-                yellow_line_detected = true;
-                yellow_line_count++;
+// 노란색 선 검출 부분
+std::vector<cv::Vec4i> yellow_lines;
+cv::HoughLinesP(yellow_mask_combined, yellow_lines, 1, CV_PI/180, 30, 20, 40);
 
-                // 이미지 픽셀 강도 평균
-                cv::Moments moments = cv::moments(contour);
-                if (moments.m00 != 0)
-                {
-                    yellow_line_x = moments.m10 / moments.m00;
-                    yellow_line_x = (yellow_line_x / width) * 2 - 1;
-
-                    auto yellow_pos_msg = std_msgs::msg::Float32();
-                    yellow_pos_msg.data = yellow_line_x;
-                    yellow_pos_pub_->publish(yellow_pos_msg);
-                }
-
-                std::vector<cv::Point> approx;
-                cv::approxPolyDP(contour, approx, 10, true); // 형상을 근사해서 좀 더 매끄럽게
-
-                // 긴 축을 찾기 위한 최소 영역 사각형
-                cv::RotatedRect rot_rect = cv::minAreaRect(contour);
-                cv::Point2f vertices[4];
-                rot_rect.points(vertices);
-
-                // 좌표 보내주는 부분
-                auto line_points_msg = std_msgs::msg::Float32MultiArray();
-                line_points_msg.data.resize(8);
-                for (int i = 0; i < 4; i++)
-                {
-                    float x = vertices[i].x;
-                    float y = vertices[i].y;
-
-                    line_points_msg.data[i * 2] = x;
-                    line_points_msg.data[i * 2 + 1] = y;
-                }
-
-                float angle = 0.0f;
-                float dx = vertices[2].x - vertices[1].x;
-                float dy = vertices[2].y - vertices[1].y;
-                // 각도변 사이 각
-                angle = std::atan2(dy, dx);
-                // 라이단 변환 각도로
-                angle = angle * 180.0f / M_PI;
-
-                auto angle_msg = std_msgs::msg::Float32();
-                angle_msg.data = angle;
-                yellow_angle_pub_->publish(angle_msg);
-
-                yellow_line_points_pub_->publish(line_points_msg);
-
-                float max_length = 0;
-                int max_idx = 0;
-                for (int i = 0; i < 4; i++) // 최대 길이 선으로 표현
-                {
-                    float length = cv::norm(vertices[i] - vertices[(i + 1) % 4]);
-                    if (length > max_length)
-                    {
-                        max_length = length;
-                        max_idx = i;
-                    }
-                }
-                cv::line(line_display, vertices[max_idx], vertices[(max_idx + 1) % 4],
-                         cv::Scalar(0, 255, 255), 2);
-            }
+if (!yellow_lines.empty()) {
+    yellow_line_detected = true;
+    yellow_line_count = yellow_lines.size();
+    
+    // 가장 외곽(왼쪽) 라인 찾기
+    float leftmost_x = width;
+    cv::Vec4i leftmost_line;
+    bool found = false;
+    
+    for(const auto& line : yellow_lines) {
+        float x1 = line[0], x2 = line[2];
+        float avg_x = (x1 + x2) / 2;
+        if (avg_x < leftmost_x) {
+            leftmost_x = avg_x;
+            leftmost_line = line;
+            found = true;
         }
+    }
+    
+    if (found) {
+    float x1 = leftmost_line[0], y1 = leftmost_line[1];
+    float x2 = leftmost_line[2], y2 = leftmost_line[3];
+    
+    yellow_line_x = (leftmost_x / width) * 2 - 1;
+    
+    // 각도 계산 수정
+    float dy = y1 - y2;
+    float dx = x1 - x2;
+    float angle = std::atan2(dy, dx) * 180.0f / M_PI;
+    
+    
+    // 수직선에 가까운 각도로 변환 (90도에 가깝게)
+    if (angle < 0) {
+        angle += 180.0f;
+    }
+    
+    // 시각화를 위한 선 그리기
+    cv::line(line_display, cv::Point(x1, y1), cv::Point(x2, y2),
+             cv::Scalar(0, 255, 255), 2);
+    
+    auto yellow_pos_msg = std_msgs::msg::Float32();
+    yellow_pos_msg.data = yellow_line_x;
+    yellow_pos_pub_->publish(yellow_pos_msg);
+    
+    auto angle_msg = std_msgs::msg::Float32();
+    angle_msg.data = angle;
+    yellow_angle_pub_->publish(angle_msg);
+}
+}
 
-        // 흰색 선 그리기 (노란색과 같음)
-        for (const auto &contour : white_contours)
-        {
-            double area = cv::contourArea(contour);
-            if (area > 150.0)
-            {
-                white_line_detected = true;
-                white_line_count++;
+// 흰색 선 검출 부분
+std::vector<cv::Vec4i> white_lines;
+cv::HoughLinesP(white_mask_combined, white_lines, 1, CV_PI/180, 30, 20, 10);
 
-                cv::Moments moments = cv::moments(contour);
-                if (moments.m00 != 0)
-                {
-                    white_line_x = moments.m10 / moments.m00;
-
-                    white_line_x = (white_line_x / width) * 2 - 1;
-
-                    auto white_pos_msg = std_msgs::msg::Float32();
-                    white_pos_msg.data = white_line_x;
-                    white_pos_pub_->publish(white_pos_msg);
-                }
-
-                std::vector<cv::Point> approx;
-                cv::approxPolyDP(contour, approx, 10, true);
-
-                cv::RotatedRect rot_rect = cv::minAreaRect(contour);
-                cv::Point2f vertices[4];
-                rot_rect.points(vertices);
-
-                auto line_points_msg = std_msgs::msg::Float32MultiArray();
-                line_points_msg.data.resize(8);
-                for (int i = 0; i < 4; i++)
-                {
-                    float x = vertices[i].x;
-                    float y = vertices[i].y;
-
-                    line_points_msg.data[i * 2] = x;
-                    line_points_msg.data[i * 2 + 1] = y;
-                }
-
-                float angle = 0.0f;
-                float dx = vertices[3].x - vertices[0].x;
-                float dy = vertices[3].y - vertices[0].y;
-
-                angle = std::atan2(dy, dx); // 각도
-
-                angle = angle * 180.0f / M_PI;
-
-                auto angle_msg = std_msgs::msg::Float32();
-                angle_msg.data = angle;
-                white_angle_pub_->publish(angle_msg);
-
-                white_line_points_pub_->publish(line_points_msg);
-
-                float max_length = 0;
-                int max_idx = 0;
-                for (int i = 0; i < 4; i++)
-                {
-                    float length = cv::norm(vertices[i] - vertices[(i + 1) % 4]);
-                    if (length > max_length)
-                    {
-                        max_length = length;
-                        max_idx = i;
-                    }
-                }
-                cv::line(line_display, vertices[max_idx], vertices[(max_idx + 1) % 4],
-                         cv::Scalar(255, 255, 255), 2);
-            }
+if (!white_lines.empty()) {
+    white_line_detected = true;
+    white_line_count = white_lines.size();
+    
+    // 가장 외곽(오른쪽) 라인 찾기
+    float rightmost_x = 0;
+    cv::Vec4i rightmost_line;
+    bool found = false;
+    
+    for(const auto& line : white_lines) {
+        float x1 = line[0], x2 = line[2];
+        float avg_x = (x1 + x2) / 2;
+        if (avg_x > rightmost_x) {
+            rightmost_x = avg_x;
+            rightmost_line = line;
+            found = true;
         }
+    }
+    
+    if (found) {
+    float x1 = rightmost_line[0], y1 = rightmost_line[1];
+    float x2 = rightmost_line[2], y2 = rightmost_line[3];
+    
+    white_line_x = (rightmost_x / width) * 2 - 1;
+    
+    // 각도 계산 수정
+    float dy = y2 - y1;
+    float dx = x2 - x1;
+    float angle = std::atan2(dy, dx) * 180.0f / M_PI;
+    
+    // 수직선에 가까운 각도로 변환 (90도에 가깝게)
+    if (angle < 0) {
+        angle += 180.0f;
+    }
+    
+    cv::line(line_display, cv::Point(x1, y1), cv::Point(x2, y2),
+             cv::Scalar(255, 255, 255), 2);
+    
+    auto white_pos_msg = std_msgs::msg::Float32();
+    white_pos_msg.data = white_line_x;
+    white_pos_pub_->publish(white_pos_msg);
+    
+    auto angle_msg = std_msgs::msg::Float32();
+    angle_msg.data = angle;
+    white_angle_pub_->publish(angle_msg);
+}
+}
 
         if (yellow_line_detected || white_line_detected) // 노란선 감지 또는 흰 선감지
         {
@@ -397,133 +362,15 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::morphologyEx(bar_yellow_roi, bar_yellow_roi, cv::MORPH_OPEN, kernel);
         cv::morphologyEx(bar_yellow_roi, bar_yellow_roi, cv::MORPH_CLOSE, kernel_large);
 
-        // 라인 컨투어 검출
-        std::vector<std::vector<cv::Point>> bar_yellow_line_contours, bar_white_line_contours;
-        cv::findContours(bar_yellow_line_mask, bar_yellow_line_contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-        cv::findContours(bar_white_line_mask, bar_white_line_contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
         bool barrier_yellow_detected = false;
         bool barrier_white_detected = false;
         float barrier_yellow_angle = 0.0f;
         float barrier_white_angle = 0.0f;
 
-        // 차단바 노란색 라인 검출 처리
-        for (const auto &contour : bar_yellow_line_contours)
-        {
-            double area = cv::contourArea(contour);
-            if (area > 200.0)
-            {
-                barrier_yellow_detected = true;
-                // 모멘트 계산
-                cv::Moments moments = cv::moments(contour);
-                if (moments.m00 != 0)
-                {
-                    float x = moments.m10 / moments.m00;
-                    x = (x / width) * 2 - 1;
-                }
-
-                // 각도 계산을 위한 최소 영역 사각형
-                cv::RotatedRect rot_rect = cv::minAreaRect(contour);
-
-                // 각도 계산
-                float width = rot_rect.size.width;
-                float height = rot_rect.size.height;
-                barrier_yellow_angle = rot_rect.angle;
-
-                // width가 height보다 작을 때 90도 보정
-                if (width < height)
-                {
-                    barrier_yellow_angle += 90.0f;
-                }
-
-                // 각도 범위를 -90 ~ 90으로 조정
-                if (barrier_yellow_angle > 90.0f)
-                {
-                    barrier_yellow_angle -= 180.0f;
-                }
-                else if (barrier_yellow_angle < -90.0f)
-                {
-                    barrier_yellow_angle += 180.0f;
-                }
-
-                // 라인 그리기
-                cv::Point2f vertices[4];
-                rot_rect.points(vertices);
-                float max_length = 0;
-                int max_idx = 0;
-                for (int i = 0; i < 4; i++)
-                {
-                    float length = cv::norm(vertices[i] - vertices[(i + 1) % 4]);
-                    if (length > max_length)
-                    {
-                        max_length = length;
-                        max_idx = i;
-                    }
-                }
-                cv::line(line_display, vertices[max_idx], vertices[(max_idx + 1) % 4],
-                         cv::Scalar(0, 255, 255), 2);
-            }
-        }
-
-        // ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
-
-        // 흰색 라인 처리
-        for (const auto &contour : bar_white_line_contours)
-        {
-            double area = cv::contourArea(contour);
-            if (area > 150.0)
-            {
-                barrier_white_detected = true;
-                // 모멘트 계산
-                cv::Moments moments = cv::moments(contour);
-                if (moments.m00 != 0)
-                {
-                    float x = moments.m10 / moments.m00;
-                    x = (x / width) * 2 - 1;
-                }
-
-                // 각도 계산을 위한 최소 영역 사각형
-                cv::RotatedRect rot_rect = cv::minAreaRect(contour);
-
-                // 각도 계산
-                float width = rot_rect.size.width;
-                float height = rot_rect.size.height;
-                barrier_white_angle = rot_rect.angle;
-
-                // width가 height보다 작을 때 90도 보정
-                if (width < height)
-                {
-                    barrier_white_angle += 90.0f;
-                }
-
-                // 각도 범위를 -90 ~ 90으로 조정, 왼쪽이 - 오른쪽이 +
-                if (barrier_white_angle > 90.0f)
-                {
-                    barrier_white_angle -= 180.0f;
-                }
-                else if (barrier_white_angle < -90.0f)
-                {
-                    barrier_white_angle += 180.0f;
-                }
-
-                // 라인 그리기
-                cv::Point2f vertices[4];
-                rot_rect.points(vertices);
-                float max_length = 0;
-                int max_idx = 0;
-                for (int i = 0; i < 4; i++)
-                {
-                    float length = cv::norm(vertices[i] - vertices[(i + 1) % 4]);
-                    if (length > max_length)
-                    {
-                        max_length = length;
-                        max_idx = i;
-                    }
-                }
-                cv::line(line_display, vertices[max_idx], vertices[(max_idx + 1) % 4],
-                         cv::Scalar(255, 255, 255), 2);
-            }
-        }
+        // 라인 컨투어 검출
+        std::vector<std::vector<cv::Point>> bar_yellow_line_contours, bar_white_line_contours;
+        cv::findContours(bar_yellow_line_mask, bar_yellow_line_contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+        cv::findContours(bar_white_line_mask, bar_white_line_contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
         // 차단바 검출을 위한 컨투어 처리
         std::vector<std::vector<cv::Point>> bar_yellow_contours;
@@ -730,9 +577,9 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::imshow("Yellow Mask", yellow_mask_combined);
         cv::imshow("White Mask", white_mask_combined);
         cv::imshow("Detected Lines", line_display);
-        //cv::imshow("Barrier Yellow", bar_yellow_roi);
-        //cv::imshow("Barrier Line Yellow", bar_yellow_line_mask);
-        //cv::imshow("Barrier Line White", bar_white_line_mask);
+        // cv::imshow("Barrier Yellow", bar_yellow_roi);
+        // cv::imshow("Barrier Line Yellow", bar_yellow_line_mask);
+        // cv::imshow("Barrier Line White", bar_white_line_mask);
         cv::imshow("BLUe", blue_mask);
         cv::waitKey(1);
     }

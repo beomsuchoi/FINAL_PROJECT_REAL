@@ -1,0 +1,61 @@
+// imageCallback 함수 내부의 라인 검출 부분을 다음과 같이 수정
+// 마스크 처리 후, 컨투어 부분 대신 아래 코드 추가
+
+// 점 추출을 위한 벡터 선언 추가
+std::vector<cv::Point> yellow_points, white_points;
+
+// 마스크에서 점 추출
+for(int y = 0; y < yellow_mask_combined.rows; y++) {
+    for(int x = 0; x < yellow_mask_combined.cols; x++) {
+        if(yellow_mask_combined.at<uchar>(y,x) > 0) {
+            yellow_points.push_back(cv::Point(x,y));
+        }
+        if(white_mask_combined.at<uchar>(y,x) > 0) {
+            white_points.push_back(cv::Point(x,y));
+        }
+    }
+}
+
+// 노란선 검출
+if(yellow_points.size() > 50) {
+    yellow_line_detected = true;
+    yellow_line_count++;
+    
+    RANSACLine yellow_line = detectLineRANSAC(yellow_points);  // findBestLine을 detectLineRANSAC로 변경
+    if(yellow_line.valid) {
+        yellow_line_x = (yellow_line.center_x / width) * 2 - 1;
+        
+        auto yellow_pos_msg = std_msgs::msg::Float32();
+        yellow_pos_msg.data = yellow_line_x;
+        yellow_pos_pub_->publish(yellow_pos_msg);
+
+        auto angle_msg = std_msgs::msg::Float32();
+        angle_msg.data = yellow_line.angle;
+        yellow_angle_pub_->publish(angle_msg);
+
+        cv::line(line_display, yellow_line.start, yellow_line.end, 
+                 cv::Scalar(0, 255, 255), 2);
+    }
+}
+
+// 흰선 검출
+if(white_points.size() > 50) {
+    white_line_detected = true;
+    white_line_count++;
+    
+    RANSACLine white_line = detectLineRANSAC(white_points);  // findBestLine을 detectLineRANSAC로 변경
+    if(white_line.valid) {
+        white_line_x = (white_line.center_x / width) * 2 - 1;
+        
+        auto white_pos_msg = std_msgs::msg::Float32();
+        white_pos_msg.data = white_line_x;
+        white_pos_pub_->publish(white_pos_msg);
+
+        auto angle_msg = std_msgs::msg::Float32();
+        angle_msg.data = white_line.angle;
+        white_angle_pub_->publish(angle_msg);
+
+        cv::line(line_display, white_line.start, white_line.end,
+                 cv::Scalar(255, 255, 255), 2);
+    }
+}
