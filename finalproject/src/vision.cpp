@@ -141,7 +141,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::Mat yellow_mask_combined;
 
         cv::Mat yellow_mask_hsv;
-        cv::Scalar lower_yellow_hsv(20, 120, 120);
+        cv::Scalar lower_yellow_hsv(25, 120, 120);
         cv::Scalar upper_yellow_hsv(30, 255, 255);
         cv::inRange(hsv, lower_yellow_hsv, upper_yellow_hsv, yellow_mask_hsv);
 
@@ -166,7 +166,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
 
         // 1. HSV 기반 흰색 검출
         cv::Mat white_mask_hsv;
-        cv::Scalar lower_white_hsv(0, 0, 210);
+        cv::Scalar lower_white_hsv(0, 0, 200);
         cv::Scalar upper_white_hsv(180, 30, 255);
         cv::inRange(hsv, lower_white_hsv, upper_white_hsv, white_mask_hsv);
 
