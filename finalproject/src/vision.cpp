@@ -116,12 +116,12 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::warpPerspective(resized_frame, birds_eye_view, perspective_matrix, cv::Size(width, height));
 
         // 전처리 과정 (블러 2번)
-        cv::Mat preprocessed;
-        cv::GaussianBlur(birds_eye_view, preprocessed, cv::Size(5, 5), 0);
+        //cv::Mat preprocessed;
+        //cv::GaussianBlur(birds_eye_view, preprocessed, cv::Size(5, 5), 0);
 
         // CLAHE 적용 (L*a*b* 색공간) //노이즈 제거 but 색조 대비는 별로 없어서 큰 영향 X
         cv::Mat lab;
-        cv::cvtColor(preprocessed, lab, cv::COLOR_BGR2Lab);
+        cv::cvtColor(birds_eye_view, lab, cv::COLOR_BGR2Lab);
         std::vector<cv::Mat> lab_channels;
         cv::split(lab, lab_channels);
 
@@ -130,18 +130,18 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
 
         // 통합
         cv::merge(lab_channels, lab);
-        cv::cvtColor(lab, preprocessed, cv::COLOR_Lab2BGR);
+        cv::cvtColor(lab, birds_eye_view, cv::COLOR_Lab2BGR);
 
         // ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
 
         cv::Mat hsv;
-        cv::cvtColor(preprocessed, hsv, cv::COLOR_BGR2HSV);
+        cv::cvtColor(birds_eye_view, hsv, cv::COLOR_BGR2HSV);
 
         // 노란색 HSV,Lab, RGB 3가지로 색을 받아서 혼합.
         cv::Mat yellow_mask_combined;
 
         cv::Mat yellow_mask_hsv;
-        cv::Scalar lower_yellow_hsv(25, 120, 120);
+        cv::Scalar lower_yellow_hsv(20, 120, 120);
         cv::Scalar upper_yellow_hsv(30, 255, 255);
         cv::inRange(hsv, lower_yellow_hsv, upper_yellow_hsv, yellow_mask_hsv);
 
@@ -149,7 +149,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::inRange(lab, cv::Scalar(150, 130, 140), cv::Scalar(250, 140, 200), yellow_mask_lab);
 
         cv::Mat yellow_mask_rgb;
-        cv::inRange(preprocessed, cv::Scalar(180, 180, 0), cv::Scalar(255, 255, 150), yellow_mask_rgb);
+        cv::inRange(birds_eye_view, cv::Scalar(180, 180, 0), cv::Scalar(255, 255, 150), yellow_mask_rgb);
 
         cv::bitwise_or(yellow_mask_hsv, yellow_mask_lab, yellow_mask_combined);
         cv::bitwise_or(yellow_mask_combined, yellow_mask_rgb, yellow_mask_combined);
@@ -166,8 +166,8 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
 
         // 1. HSV 기반 흰색 검출
         cv::Mat white_mask_hsv;
-        cv::Scalar lower_white_hsv(0, 0, 200);
-        cv::Scalar upper_white_hsv(180, 30, 255);
+        cv::Scalar lower_white_hsv(0, 0, 160);
+        cv::Scalar upper_white_hsv(180, 20, 255);
         cv::inRange(hsv, lower_white_hsv, upper_white_hsv, white_mask_hsv);
 
         // 2. Lab 기반 흰색 검출
@@ -178,11 +178,11 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
 
         // 3. RGB 기반 흰색 검출
         cv::Mat white_mask_rgb;
-        cv::inRange(preprocessed, cv::Scalar(240, 240, 240), cv::Scalar(255, 255, 255), white_mask_rgb);
+        cv::inRange(birds_eye_view, cv::Scalar(240, 240, 240), cv::Scalar(255, 255, 255), white_mask_rgb);
 
         // 노란색 마스크 제외, dilate로 노이즈 조금 제거
         cv::Mat yellow_mask_dilated;
-        cv::dilate(yellow_mask_combined, yellow_mask_dilated, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)));
+        cv::dilate(yellow_mask_combined, yellow_mask_dilated, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(31, 31)));
         // or 연산
         cv::bitwise_or(white_mask_hsv, white_mask_lab, white_mask_combined);
         cv::bitwise_or(white_mask_combined, white_mask_rgb, white_mask_combined);
@@ -200,7 +200,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::findContours(white_mask_combined, white_contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
         // 컨투어 필터링 및 선 그리기
-        cv::Mat line_display = preprocessed.clone();
+        cv::Mat line_display = birds_eye_view.clone();
 
         // 기본 설정
         yellow_line_detected = false;
@@ -613,7 +613,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         line_pub_->publish(*line_msg);
 
         cv::imshow("Original Image", resized_frame);
-        cv::imshow("Preprocessed", preprocessed);
+        cv::imshow("birds_eye_view", birds_eye_view);
         cv::imshow("Yellow Mask", yellow_mask_combined);
         cv::imshow("White Mask", white_mask_combined);
         cv::imshow("Detected Lines", line_display);
