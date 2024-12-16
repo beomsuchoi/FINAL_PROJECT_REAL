@@ -48,6 +48,9 @@ Vision::Vision(const std::string &node_name)
 
     yellow_detection_array.fill(false);
     white_detection_array.fill(false);
+
+    red_mask_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/vision/red_mask", 10);
+    red_detected_pub_ = this->create_publisher<std_msgs::msg::Bool>("/vision/red_line_detected", 10);
     // 각종 publisher들 master에게 보내주는 부분.
 }
 
@@ -116,8 +119,8 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::warpPerspective(resized_frame, birds_eye_view, perspective_matrix, cv::Size(width, height));
 
         // 전처리 과정 (블러 2번)
-        //cv::Mat preprocessed;
-        //cv::GaussianBlur(birds_eye_view, preprocessed, cv::Size(5, 5), 0);
+        // cv::Mat preprocessed;
+        // cv::GaussianBlur(birds_eye_view, preprocessed, cv::Size(5, 5), 0);
 
         // CLAHE 적용 (L*a*b* 색공간) //노이즈 제거 but 색조 대비는 별로 없어서 큰 영향 X
         cv::Mat lab;
@@ -141,7 +144,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::Mat yellow_mask_combined;
 
         cv::Mat yellow_mask_hsv;
-        cv::Scalar lower_yellow_hsv(20, 120, 120);
+        cv::Scalar lower_yellow_hsv(15, 120, 120);
         cv::Scalar upper_yellow_hsv(30, 255, 255);
         cv::inRange(hsv, lower_yellow_hsv, upper_yellow_hsv, yellow_mask_hsv);
 
@@ -191,6 +194,38 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::morphologyEx(white_mask_combined, white_mask_combined, cv::MORPH_OPEN, kernel);
         cv::morphologyEx(white_mask_combined, white_mask_combined, cv::MORPH_CLOSE, kernel_large);
         cv::dilate(white_mask_combined, white_mask_combined, kernel, cv::Point(-1, -1), 2);
+
+        cv::Mat red_mask;
+        cv::Scalar lower_red_hsv1(0, 100, 100);
+        cv::Scalar upper_red_hsv1(10, 255, 255);
+        cv::inRange(hsv, lower_red_hsv1, upper_red_hsv1, red_mask);
+
+        cv::Mat red_mask2;
+        cv::Scalar lower_red_hsv2(160, 100, 100);
+        cv::Scalar upper_red_hsv2(180, 255, 255);
+        cv::inRange(hsv, lower_red_hsv2, upper_red_hsv2, red_mask2);
+
+        cv::bitwise_or(red_mask, red_mask2, red_mask);
+
+        cv::morphologyEx(red_mask, red_mask, cv::MORPH_OPEN, kernel);
+        cv::morphologyEx(red_mask, red_mask, cv::MORPH_CLOSE, kernel_large);
+
+        std::vector<cv::Vec4i> red_lines;
+        cv::HoughLinesP(red_mask, red_lines, 1, CV_PI / 180, 30, 20, 10);
+
+        bool red_line_detected = !red_lines.empty();
+
+        // publish
+        auto red_detected_msg = std_msgs::msg::Bool();
+        red_detected_msg.data = red_line_detected;
+        red_detected_pub_->publish(red_detected_msg);
+
+        // mask image publish
+        sensor_msgs::msg::Image::SharedPtr red_mask_msg =
+            cv_bridge::CvImage(msg->header, "mono8", red_mask).toImageMsg();
+        red_mask_pub_->publish(*red_mask_msg);
+
+        cv::imshow("Red Mask", red_mask);
 
         // ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
 

@@ -27,6 +27,9 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr white_mask_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr line_pub_;
 
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr red_mask_pub_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr red_detected_pub_;
+
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr yellow_detected_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr white_detected_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr blue_sign_detected_pub_;
