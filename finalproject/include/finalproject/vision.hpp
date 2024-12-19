@@ -46,6 +46,8 @@ private:
     
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr yellow_center_dist_pub_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr white_center_dist_pub_;
+
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr left_blue_sign_detected_pub_;
     
     bool barrier_detected;
     bool blue_sign_detected;
