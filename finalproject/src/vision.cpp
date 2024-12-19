@@ -99,10 +99,10 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         left_sign_vertices[3] = cv::Point2f(width * 0.30f, height * 0.7f);
 
         // 차단바
-        bar_vertices[0] = cv::Point2f(width * 0.35f, height * 0.55f);
-        bar_vertices[1] = cv::Point2f(width * 0.65f, height * 0.55f);
-        bar_vertices[2] = cv::Point2f(width * 0.65f, height * 0.7f);
-        bar_vertices[3] = cv::Point2f(width * 0.35f, height * 0.7f);
+        bar_vertices[0] = cv::Point2f(width * 0.25f, height * 0.75f);
+        bar_vertices[1] = cv::Point2f(width * 0.75f, height * 0.75f);
+        bar_vertices[2] = cv::Point2f(width * 0.75f, height * 0.95f);
+        bar_vertices[3] = cv::Point2f(width * 0.25f, height * 0.95f);
 
         // 표지판
         signs_vertices[0] = cv::Point2f(width * 0.95f, height * 0.3f);
@@ -420,7 +420,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
 
         // 차단바 검출을 위한 노란색 마스크
         cv::Mat bar_yellow_roi;
-        cv::Scalar barrier_lower_yellow(15, 100, 100);
+        cv::Scalar barrier_lower_yellow(15, 120, 120);
         cv::Scalar barrier_upper_yellow(35, 255, 255);
         cv::inRange(bar_hsv, barrier_lower_yellow, barrier_upper_yellow, bar_yellow_roi);
 
@@ -467,47 +467,67 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         for (const auto &yellow_contour : bar_yellow_contours)
         {
             double area = cv::contourArea(yellow_contour);
-            if (area > 50.0 && area < 1000.0)
+            // 면적 조건을 더 크게 수정
+            if (area > 500.0 && area < 5000.0) // 차단바가 더 크므로 범위를 늘림
             {
                 cv::RotatedRect yellow_rect = cv::minAreaRect(yellow_contour);
                 candidate_rects.push_back(yellow_rect);
             }
         }
 
-        if (candidate_rects.size() >= 4)
+        if (candidate_rects.size() >= 3)
         {
-            // y 좌표로 정렬, 일직선상의 사각형들이 4개 이상
+            // x 좌표로 정렬 (차단바들이 가로로 나열되어 있음)
             std::sort(candidate_rects.begin(), candidate_rects.end(),
                       [](const cv::RotatedRect &a, const cv::RotatedRect &b)
                       {
-                          return a.center.y < b.center.y;
+                          return a.center.x < b.center.x;
                       });
 
-            float prev_y = candidate_rects[0].center.y;
-            int same_line_count = 1;
-            float total_width = 0;
-            float avg_height = 0;
+            float prev_x = candidate_rects[0].center.x;
+            int aligned_count = 1;
+            float total_height = 0;
+            float avg_width = 0;
+            bool is_valid_sequence = true;
 
             for (size_t i = 1; i < candidate_rects.size(); i++)
             {
-                float curr_y = candidate_rects[i].center.y;
-                if (std::abs(curr_y - prev_y) < 15.0)
-                {
-                    same_line_count++;
-                    float width = std::min(candidate_rects[i].size.width, candidate_rects[i].size.height);
-                    float height = std::max(candidate_rects[i].size.width, candidate_rects[i].size.height);
-                    total_width += width;
-                    avg_height += height;
+                float curr_x = candidate_rects[i].center.x;
+                float x_diff = std::abs(curr_x - prev_x);
 
-                    float x_diff = std::abs(candidate_rects[i].center.x - candidate_rects[i - 1].center.x);
-                    if (x_diff > 50.0)
-                        continue;
+                // 인접한 차단바 사이의 간격 체크 (20-100 픽셀)
+                if (x_diff > 10.0 && x_diff < 200.0)
+                {
+                    // y 좌표 차이도 체크 (높이가 비슷해야 함)
+                    float y_diff = std::abs(candidate_rects[i].center.y - candidate_rects[i - 1].center.y);
+                    if (y_diff < 30.0) // 높이 차이 허용 범위
+                    {
+                        aligned_count++;
+                        float width = std::min(candidate_rects[i].size.width, candidate_rects[i].size.height);
+                        float height = std::max(candidate_rects[i].size.width, candidate_rects[i].size.height);
+                        total_height += height;
+                        avg_width += width;
+                        prev_x = curr_x;
+                    }
+                    else
+                    {
+                        is_valid_sequence = false;
+                        break;
+                    }
+                }
+                else
+                {
+                    is_valid_sequence = false;
+                    break;
                 }
             }
 
-            avg_height /= same_line_count;
+            avg_width /= aligned_count;
+            float avg_height = total_height / aligned_count;
 
-            if (same_line_count >= 4 && avg_height > 10.0 && total_width > 50.0)
+            // 차단바 감지 조건 수정
+            if (aligned_count >= 4 && is_valid_sequence &&
+                avg_height > 30.0 && avg_width > 10.0) // 최소 크기 조건
             {
                 barrier_detected = true;
 
@@ -624,8 +644,8 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
 
         // 파란색 마스크 생성 - HSV 값 조정
         cv::Mat blue_mask;
-        //cv::Scalar lower_blue_hsv(100, 70, 50);
-        //cv::Scalar upper_blue_hsv(130, 255, 255);
+        // cv::Scalar lower_blue_hsv(100, 70, 50);
+        // cv::Scalar upper_blue_hsv(130, 255, 255);
         cv::inRange(sign_hsv, lower_blue_hsv, upper_blue_hsv, blue_mask);
 
         // 노이즈 제거
@@ -717,7 +737,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::imshow("Yellow Mask", yellow_mask_combined);
         cv::imshow("White Mask", white_mask_combined);
         cv::imshow("Detected Lines", line_display);
-        // cv::imshow("Barrier Yellow", bar_yellow_roi);
+        cv::imshow("Barrier Yellow", bar_yellow_roi);
         // cv::imshow("Barrier Line Yellow", bar_yellow_line_mask);
         // cv::imshow("Barrier Line White", bar_white_line_mask);
         cv::imshow("BLUe", blue_mask);
@@ -725,7 +745,6 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::imshow("Left Blue Mask", left_blue_mask);
 
         cv::waitKey(1);
-
     }
     catch (const cv_bridge::Exception &e)
     {
