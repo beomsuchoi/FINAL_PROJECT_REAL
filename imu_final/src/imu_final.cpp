@@ -11,6 +11,10 @@ ImuFinal::ImuFinal(const std::string &node_name) : Node(node_name)
     pitch_pub_ = this->create_publisher<std_msgs::msg::Float32>("/pitch", 10);
     yaw_pub_ = this->create_publisher<std_msgs::msg::Float32>("/yaw", 10);
 
+    reset_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+            "/imu/reset", 10,
+            std::bind(&ImuFinal::resetCallback, this, std::placeholders::_1));
+
     reset_service_ = this->create_service<std_srvs::srv::Trigger>(
         "reset_imu",
         std::bind(&ImuFinal::handleResetSignal, this,
@@ -36,6 +40,8 @@ float KalmanFilter::update(float measurement)
         first_run = false;
         return X;
     }
+
+    // 예측 단계에서의 불확실성 증가
     P = P + Q;
 
     // Kalman 게인 계산
@@ -124,6 +130,13 @@ void ImuFinal::resetAngles()
     yaw_kf = KalmanFilter();
 }
 
+void ImuFinal::resetCallback(const std_msgs::msg::Bool::SharedPtr msg)
+    {
+        if (msg->data) {  // true일 때만 reset 실행
+            resetAngles();
+        }
+    }
+    
 void ImuFinal::imuCallback(const std_msgs::msg::String::SharedPtr msg)
 {
     std::vector<double> values;
@@ -150,7 +163,7 @@ void ImuFinal::processImuData(const std::vector<double> &data)
     // Kalman 필터 적용 (offset 적용 전)
     float final_roll = roll_kf.update(roll);
     float final_pitch = pitch_kf.update(pitch);
-    int final_yaw = yaw_kf.update(yaw);
+    float final_yaw = yaw_kf.update(yaw);
 
     // yaw offset을 필터링된 값에 적용
     final_yaw -= yaw_offset;
@@ -176,4 +189,9 @@ void ImuFinal::processImuData(const std::vector<double> &data)
     // 디버깅을 위한 로그 추가
     RCLCPP_INFO(this->get_logger(), "Raw Yaw: %.2f, Filtered: %.2f, Offset: %.2f, Final: %.2f",
                 yaw, yaw_kf.getState(), yaw_offset, final_yaw);
+
+    roll_pub_->publish(roll_msg);
+    pitch_pub_->publish(pitch_msg);
+    yaw_pub_->publish(yaw_msg);
 }
+
