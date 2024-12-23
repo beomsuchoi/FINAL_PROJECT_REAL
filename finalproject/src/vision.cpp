@@ -93,10 +93,10 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::Point2f left_sign_vertices[4];
 
         // 주차장 나오는 부분
-        left_sign_vertices[0] = cv::Point2f(width * 0.30f, height * 0.55f);
-        left_sign_vertices[1] = cv::Point2f(width * 0.60f, height * 0.55f);
-        left_sign_vertices[2] = cv::Point2f(width * 0.60f, height * 0.7f);
-        left_sign_vertices[3] = cv::Point2f(width * 0.30f, height * 0.7f);
+        left_sign_vertices[0] = cv::Point2f(width * 0.0f, height * 0.6f);
+        left_sign_vertices[1] = cv::Point2f(width * 1.0f, height * 0.6f);
+        left_sign_vertices[2] = cv::Point2f(width * 1.00f, height * 0.8f);
+        left_sign_vertices[3] = cv::Point2f(width * 0.0f, height * 0.8f);
 
         // 차단바
         bar_vertices[0] = cv::Point2f(width * 0.25f, height * 0.75f);
@@ -168,7 +168,8 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
 
         // 모폴로지 연산, 커널 사이즈 지정
         cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-        cv::Mat kernel_large = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
+        cv::Mat kernel_large = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(31, 31));
+        cv::Mat kernel_bar = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
 
         cv::morphologyEx(yellow_mask_combined, yellow_mask_combined, cv::MORPH_OPEN, kernel);
         cv::morphologyEx(yellow_mask_combined, yellow_mask_combined, cv::MORPH_CLOSE, kernel_large);
@@ -217,7 +218,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         cv::bitwise_or(red_mask, red_mask2, red_mask);
 
         cv::morphologyEx(red_mask, red_mask, cv::MORPH_OPEN, kernel);
-        cv::morphologyEx(red_mask, red_mask, cv::MORPH_CLOSE, kernel_large);
+        cv::morphologyEx(red_mask, red_mask, cv::MORPH_CLOSE, kernel_bar);
 
         std::vector<cv::Vec4i> red_lines;
         cv::HoughLinesP(red_mask, red_lines, 1, CV_PI / 180, 30, 20, 10);
@@ -435,16 +436,16 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
 
         // 노이즈 제거
         cv::morphologyEx(bar_yellow_line_mask, bar_yellow_line_mask, cv::MORPH_OPEN, kernel);
-        cv::morphologyEx(bar_yellow_line_mask, bar_yellow_line_mask, cv::MORPH_CLOSE, kernel_large);
+        cv::morphologyEx(bar_yellow_line_mask, bar_yellow_line_mask, cv::MORPH_CLOSE, kernel_bar);
         cv::morphologyEx(bar_white_line_mask, bar_white_line_mask, cv::MORPH_OPEN, kernel);
-        cv::morphologyEx(bar_white_line_mask, bar_white_line_mask, cv::MORPH_CLOSE, kernel_large);
+        cv::morphologyEx(bar_white_line_mask, bar_white_line_mask, cv::MORPH_CLOSE, kernel_bar);
 
         // ROI 적용
         cv::bitwise_and(bar_yellow_roi, bar_roi_mask, bar_yellow_roi);
 
         // 노이즈 제거
         cv::morphologyEx(bar_yellow_roi, bar_yellow_roi, cv::MORPH_OPEN, kernel);
-        cv::morphologyEx(bar_yellow_roi, bar_yellow_roi, cv::MORPH_CLOSE, kernel_large);
+        cv::morphologyEx(bar_yellow_roi, bar_yellow_roi, cv::MORPH_CLOSE, kernel_bar);
 
         bool barrier_yellow_detected = false;
         bool barrier_white_detected = false;
@@ -595,13 +596,13 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
 
         // 파란색 마스크 생성 - HSV 값 조정 (기존과 동일한 값 사용)
         cv::Mat left_blue_mask;
-        cv::Scalar lower_blue_hsv(100, 70, 50);
-        cv::Scalar upper_blue_hsv(130, 255, 255);
-        cv::inRange(left_sign_hsv, lower_blue_hsv, upper_blue_hsv, left_blue_mask);
+        cv::Scalar lower_left_blue_hsv(100, 150, 30);
+        cv::Scalar upper_left_blue_hsv(130, 255, 255);
+        cv::inRange(left_sign_hsv, lower_left_blue_hsv, upper_left_blue_hsv, left_blue_mask);
 
         // 노이즈 제거
         cv::morphologyEx(left_blue_mask, left_blue_mask, cv::MORPH_OPEN, kernel);
-        cv::morphologyEx(left_blue_mask, left_blue_mask, cv::MORPH_CLOSE, kernel_large);
+        cv::morphologyEx(left_blue_mask, left_blue_mask, cv::MORPH_CLOSE, kernel_bar);
 
         // 파란색 영역 검출
         std::vector<std::vector<cv::Point>> left_blue_contours;
@@ -613,6 +614,8 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
             double area = cv::contourArea(contour);
             if (area > 100.0) // 동일한 임계값 사용
             {
+                RCLCPP_INFO(this->get_logger(), "Left Blue area detected: %.2f", area);
+
                 left_blue_sign_detected = true;
                 break;
             }
@@ -644,13 +647,13 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
 
         // 파란색 마스크 생성 - HSV 값 조정
         cv::Mat blue_mask;
-        // cv::Scalar lower_blue_hsv(100, 70, 50);
-        // cv::Scalar upper_blue_hsv(130, 255, 255);
+        cv::Scalar lower_blue_hsv(100, 70, 50);
+        cv::Scalar upper_blue_hsv(130, 255, 255);
         cv::inRange(sign_hsv, lower_blue_hsv, upper_blue_hsv, blue_mask);
 
         // 노이즈 제거
         cv::morphologyEx(blue_mask, blue_mask, cv::MORPH_OPEN, kernel);
-        cv::morphologyEx(blue_mask, blue_mask, cv::MORPH_CLOSE, kernel_large);
+        cv::morphologyEx(blue_mask, blue_mask, cv::MORPH_CLOSE, kernel_bar);
 
         // 파란색 영역 검출
         std::vector<std::vector<cv::Point>> blue_contours;
@@ -660,8 +663,10 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         for (const auto &contour : blue_contours)
         {
             double area = cv::contourArea(contour);
+
             if (area > 100.0)
             {
+                RCLCPP_INFO(this->get_logger(), "Blue area detected: %.2f", area);
                 blue_sign_detected = true;
                 break;
             }
