@@ -107,8 +107,8 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         left_sign_vertices[3] = cv::Point2f(width * 0.0f, height * 0.8f);
 
         // 차단바
-        bar_vertices[0] = cv::Point2f(width * 0.25f, height * 0.75f);
-        bar_vertices[1] = cv::Point2f(width * 0.75f, height * 0.75f);
+        bar_vertices[0] = cv::Point2f(width * 0.35f, height * 0.55f);
+        bar_vertices[1] = cv::Point2f(width * 0.65f, height * 0.55f);
         bar_vertices[2] = cv::Point2f(width * 0.75f, height * 0.95f);
         bar_vertices[3] = cv::Point2f(width * 0.25f, height * 0.95f);
 
@@ -504,11 +504,15 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
                 float curr_x = candidate_rects[i].center.x;
                 float x_diff = std::abs(curr_x - prev_x);
 
+                RCLCPP_INFO(this->get_logger(), "x_diff: %.2f", x_diff);
+
                 // 인접한 차단바 사이의 간격 체크 (20-100 픽셀)
-                if (x_diff > 10.0 && x_diff < 200.0)
+                if (x_diff > 10.0 && x_diff < 1000.0)
                 {
                     // y 좌표 차이도 체크 (높이가 비슷해야 함)
                     float y_diff = std::abs(candidate_rects[i].center.y - candidate_rects[i - 1].center.y);
+                    RCLCPP_INFO(this->get_logger(), "y_diff: %.2f", y_diff);
+
                     if (y_diff < 30.0) // 높이 차이 허용 범위
                     {
                         aligned_count++;
@@ -535,8 +539,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
             float avg_height = total_height / aligned_count;
 
             // 차단바 감지 조건 수정
-            if (aligned_count >= 4 && is_valid_sequence &&
-                avg_height > 30.0 && avg_width > 10.0) // 최소 크기 조건
+            if (aligned_count >= 3 && is_valid_sequence) // 최소 크기 조건
             {
                 barrier_detected = true;
 
@@ -622,7 +625,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
             double area = cv::contourArea(contour);
             if (area > 100.0) // 동일한 임계값 사용
             {
-                RCLCPP_INFO(this->get_logger(), "Left Blue area detected: %.2f", area);
+                // RCLCPP_INFO(this->get_logger(), "Left Blue area detected: %.2f", area);
 
                 left_blue_sign_detected = true;
                 break;
@@ -672,19 +675,20 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
             double area = cv::contourArea(contour);
             if (area > 100.0) // 동일한 임계값 사용
             {
-                RCLCPP_INFO(this->get_logger(), "Straight Blue area detected: %.2f", area);
+                // RCLCPP_INFO(this->get_logger(), "Straight Blue area detected: %.2f", area);
 
                 straight_blue_sign_detected = true;
                 break;
             }
         }
 
-        // 왼쪽 파란색 표지판 검출 결과 발행
+        // 직선 파란색 표지판 검출 결과 발행
         auto straight_blue_sign_msg = std_msgs::msg::Bool();
         straight_blue_sign_msg.data = straight_blue_sign_detected;
         straight_blue_sign_detected_pub_->publish(straight_blue_sign_msg);
 
         // ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+
         // 표지판 ROI 마스크 생성
         cv::Mat sign_roi_mask = cv::Mat::zeros(resized_frame.size(), CV_8UC1);
         std::vector<cv::Point> roi_points;
@@ -723,7 +727,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
 
             if (area > 100.0)
             {
-                RCLCPP_INFO(this->get_logger(), "Blue area detected: %.2f", area);
+                // RCLCPP_INFO(this->get_logger(), "Blue area detected: %.2f", area);
                 blue_sign_detected = true;
                 break;
             }
@@ -793,7 +797,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         sensor_msgs::msg::Image::SharedPtr white_mask_msg =
             cv_bridge::CvImage(msg->header, "mono8", white_mask_combined).toImageMsg();
         sensor_msgs::msg::Image::SharedPtr line_msg =
-            cv_bridge::CvImage(msg->header, "bgr8", line_display).toImageMsg();
+            cv_bridge::CvImage(msg->header, "bgr8", line_display).toImageMsg(); 
 
         original_pub_->publish(*original_msg);
         yellow_mask_pub_->publish(*yellow_mask_msg);
@@ -801,17 +805,17 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         line_pub_->publish(*line_msg);
 
         cv::imshow("Original Image", resized_frame);
-        // cv::imshow("birds_eye_view", birds_eye_view);
+        //cv::imshow("birds_eye_view", birds_eye_view);
         // cv::imshow("Yellow Mask", yellow_mask_combined);
         // cv::imshow("White Mask", white_mask_combined);
         // cv::imshow("Detected Lines", line_display);
-        // cv::imshow("Barrier Yellow", bar_yellow_roi);
+        cv::imshow("Barrier Yellow", bar_yellow_roi);
         // cv::imshow("Barrier Line Yellow", bar_yellow_line_mask);
         // cv::imshow("Barrier Line White", bar_white_line_mask);
         // cv::imshow("BLUe", blue_mask);
-        // cv::imshow("Red Mask", red_mask);
+        //cv::imshow("Red Mask", red_mask);
         // cv::imshow("Left Blue Mask", left_blue_mask);
-        cv::imshow("Straight Blue Mask", straight_blue_mask);
+        //cv::imshow("Straight Blue Mask", straight_blue_mask);
 
         cv::waitKey(1);
     }
