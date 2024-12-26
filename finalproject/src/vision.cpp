@@ -107,10 +107,10 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         left_sign_vertices[3] = cv::Point2f(width * 0.0f, height * 0.8f);
 
         // 차단바
-        bar_vertices[0] = cv::Point2f(width * 0.35f, height * 0.55f);
-        bar_vertices[1] = cv::Point2f(width * 0.65f, height * 0.55f);
-        bar_vertices[2] = cv::Point2f(width * 0.75f, height * 0.95f);
-        bar_vertices[3] = cv::Point2f(width * 0.25f, height * 0.95f);
+        bar_vertices[0] = cv::Point2f(width * 0.4f, height * 0.65f);
+        bar_vertices[1] = cv::Point2f(width * 0.6f, height * 0.65f);
+        bar_vertices[2] = cv::Point2f(width * 0.7f, height * 1.0f);
+        bar_vertices[3] = cv::Point2f(width * 0.3f, height * 1.0f);
 
         // 표지판
         signs_vertices[0] = cv::Point2f(width * 0.95f, height * 0.3f);
@@ -211,7 +211,7 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
 
         cv::morphologyEx(white_mask_combined, white_mask_combined, cv::MORPH_OPEN, kernel);
         cv::morphologyEx(white_mask_combined, white_mask_combined, cv::MORPH_CLOSE, kernel_large);
-        cv::dilate(white_mask_combined, white_mask_combined, kernel, cv::Point(-1, -1), 2);
+        cv::dilate(white_mask_combined, white_mask_combined, kernel_large, cv::Point(-1, -1), 2);
 
         cv::Mat red_mask;
         cv::Scalar lower_red_hsv1(0, 100, 100);
@@ -805,11 +805,11 @@ void Vision::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) // 본�
         line_pub_->publish(*line_msg);
 
         cv::imshow("Original Image", resized_frame);
-        //cv::imshow("birds_eye_view", birds_eye_view);
-        // cv::imshow("Yellow Mask", yellow_mask_combined);
-        // cv::imshow("White Mask", white_mask_combined);
+        cv::imshow("birds_eye_view", birds_eye_view);
+         cv::imshow("Yellow Mask", yellow_mask_combined);
+         cv::imshow("White Mask", white_mask_combined);
         // cv::imshow("Detected Lines", line_display);
-        cv::imshow("Barrier Yellow", bar_yellow_roi);
+        //cv::imshow("Barrier Yellow", bar_yellow_roi);
         // cv::imshow("Barrier Line Yellow", bar_yellow_line_mask);
         // cv::imshow("Barrier Line White", bar_white_line_mask);
         // cv::imshow("BLUe", blue_mask);
