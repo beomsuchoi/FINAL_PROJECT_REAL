@@ -32,9 +32,6 @@ source install/setup.bash
 publisher : 
 ros2 run ebimu_pkg ebimu_publisher
 
-subscriber :
-ros2 run ebimu_pkg ebimu_subscriber
-
 In my node :
 ros2 run imu_final imu_node
 ```
