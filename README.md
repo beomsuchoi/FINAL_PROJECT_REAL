@@ -50,7 +50,7 @@ git clone https://github.com/beomsuchoi/FINAL_PROJECT_REAL.git
 2. 빌드, 소싱
 
 ```cpp
-cd ~/ros2_ws
+cd {your workspace}
 colcon build --packages-select finalproject
 source install/setup.bash
 
