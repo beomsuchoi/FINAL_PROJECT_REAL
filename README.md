@@ -13,11 +13,12 @@ HOW TO USE IMU
 1. 사이트 접속
 
 ```cpp
-(https://www.e2box.co.kr/entry/EBIMU-9DOF-ROS2-Package) and download it at {your workspace}.
+(https://www.e2box.co.kr/entry/EBIMU-9DOF-ROS2-Package)
 ```
 2. 다운로드
 사이트 내 ROS 버전에 맞게 다운로드
 ```
+Download it at {your workspace}.
 ```
 3. 빌드, 소싱
 
