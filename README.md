@@ -18,7 +18,7 @@ HOW TO USE IMU
 2. 다운로드
 사이트 내 ROS 버전에 맞게 다운로드
 ```
-Download it at {your workspace}.
+Download it on {your workspace}.
 ```
 3. 빌드, 소싱
 
